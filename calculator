@@ -1,0 +1,333 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<stdbool.h>
+#include<math.h>
+
+struct node;
+typedef struct node * ptnode;
+typedef ptnode head;
+
+struct node 
+{
+    int flag;
+    long long int num; 
+    char op; 
+    ptnode nxt; 
+};
+
+struct opptr 
+{
+    ptnode top;
+    ptnode bottom;
+};
+
+ptnode initdata(ptnode h,char* a)
+{
+    h = (ptnode)malloc(sizeof(struct node));
+    ptnode tmp;
+    tmp = h;
+    int index;
+    for(index = 0; a[index]!='\0';++index)
+    {
+        if(a[index]>=48 && a[index]<=57)
+        {
+            int num = 0;
+            while(a[index]!='\0'&& a[index]>=48 && a[index]<=57)
+            {
+                num = num*10 + (a[index]-48);
+                ++index;
+            }
+            ptnode newnode = (ptnode)malloc(sizeof(struct node));
+            tmp->nxt = newnode;
+            tmp = tmp->nxt;
+            tmp->flag = 1;
+            tmp->num = num;
+
+        }
+        else
+        {
+            ptnode newnode = (ptnode) malloc(sizeof(struct node));
+            tmp->nxt = newnode;
+            tmp = tmp->nxt;
+            tmp->flag = 0;
+            tmp->op = a[index];
+            ++index;
+
+        }
+        if(a[index]!='\0')
+        {
+            --index;
+        }
+        else
+        {
+            break;
+        }
+    }
+    tmp->nxt = NULL;
+    return h;
+}
+
+void traverse(ptnode h)
+{
+    ptnode tmp = h;
+    tmp = tmp->nxt;
+    while(tmp)
+    {
+        if(tmp->flag ==1)
+        {
+            printf("%lld",tmp->num);
+            tmp = tmp->nxt;
+        }
+        else
+        {
+            printf("%c",tmp->op);
+            tmp = tmp->nxt;
+        }
+
+    }
+}
+
+void release(struct node* ptr)
+{
+    if(ptr == NULL)
+        return;
+    struct node* tmp = ptr->nxt;
+    free(ptr);
+    ptr = tmp;
+    release(ptr);
+}
+
+void insertstack(struct opptr s, ptnode temp)
+{
+    if(s.bottom == NULL)
+        s.bottom = temp;
+    temp->nxt = s.top;
+    s.top = temp;
+}
+
+bool precedence(ptnode stackptr, ptnode nodeptr)
+{
+    ptnode temp;
+    if(nodeptr->op =='+' || nodeptr->op =='-')
+    {
+        if(stackptr->op =='(')
+            return false;
+        else
+            return true;
+    }
+    else if (nodeptr->op =='(')
+    {
+        return false;
+    }
+    else if (nodeptr->op ==')')
+    {
+        if(stackptr->op !='(')
+            return true;
+        else
+            return false;
+        
+    }
+    else if (nodeptr->op == '=')
+    {
+        return true;
+    }
+    else
+    {
+        if(stackptr->op =='+'||stackptr->op =='-'||stackptr->op =='(')
+            return false;
+        else
+            return true;
+    }
+}
+
+int compareop(ptnode tmp,struct opptr s,int cnt)
+{
+    ptnode ptr;
+    ptnode temp;
+    ptr = s.top;
+    if(tmp->op==')')
+        cnt += 1;
+    while(ptr!=NULL && precedence(ptr,tmp))
+    {
+        ++cnt;
+        ptr = ptr->nxt;
+    }
+    return cnt;
+}
+
+void intopost(ptnode h, struct opptr s)
+{
+    ptnode tmp = h;
+    tmp = tmp->nxt; // trace pointer tmp
+    ptnode ltmpprior = h; // the struct before the tmp
+    ptnode lpop; // the op poped out from the list
+    ptnode temp; // the ptr of the last node inserted
+    ptnode spop; // the ptr of the new head node
+    while(tmp!=NULL || s.top!=NULL) // function ends with traversing all the list and the empty op stack 
+    {
+        if(tmp->flag == 1) // num 
+        {
+            ltmpprior = tmp;
+            tmp = tmp->nxt;
+        }
+        else // op
+        {
+            int cnt = 0;
+            lpop = tmp; // break the op link in the list
+            if(tmp->op!='=')
+            {
+                ltmpprior->nxt = tmp->nxt; // link the list after break
+            }
+            else
+            {
+
+            }
+            cnt = compareop(tmp,s,cnt); //compare the op between the list and the stack
+            if(cnt!=0) //cnt!=0 stack to list
+            {
+                int i;
+                ptnode rightptr;
+                spop = s.top;
+                if(tmp->op ==')' && spop->nxt->op == '(')
+                {
+                    rightptr = spop;
+                }                    
+                for(i=1; i<cnt; ++i)
+                {
+                    spop = spop->nxt;
+                    if(tmp->op ==')'&& spop->nxt->op == '(' )
+                    {
+                        rightptr = spop;
+                    }    
+                }
+                if(tmp->op ==')' && spop->op == '(')
+                {
+                    temp = spop->nxt;
+                    free(spop);
+                    spop = rightptr;
+                    --cnt;
+                }
+                else
+                    temp = spop->nxt;
+                spop->nxt = ltmpprior->nxt;
+                ltmpprior->nxt = s.top;
+                //ltmpprior = spop;
+                s.top = temp;
+                if(s.top==NULL)
+                    s.bottom = NULL;
+            }
+            //op to stack
+            if(tmp->op!='=')
+            {
+                for(int i=0; i<cnt; ++i)
+                {
+                    ltmpprior = ltmpprior->nxt;
+                } 
+                tmp = lpop->nxt;
+                if(lpop->op == ')')
+                    free(lpop);  
+                else
+                {
+                    lpop->nxt = s.top;
+                    if(s.top==NULL)
+                        s.bottom = lpop;
+                    s.top = lpop;
+                }
+            }
+            else
+            {
+                ltmpprior = lpop;
+                tmp = tmp->nxt;
+            }
+        }
+    }
+}
+
+long long int cal (ptnode temp)
+{
+    long long int ans;
+    if(temp->nxt->nxt->op == '+')
+        ans = (temp->num) + (temp->nxt->num);
+    else if (temp->nxt->nxt->op == '-')
+        ans = (temp->num) - (temp->nxt->num);
+    else if (temp->nxt->nxt->op == '*')
+        ans = (temp->num) * (temp->nxt->num);
+    else if (temp->nxt->nxt->op == '/')
+        ans = (temp->num) / (temp->nxt->num);
+    else if (temp->nxt->nxt->op == '%')
+        ans = (temp->num) % (temp->nxt->num);
+    return ans;                
+} 
+
+void calculate(ptnode h)
+{
+    ptnode temp = h->nxt;
+    while(h->nxt!=NULL)
+    {
+        if(h->nxt->nxt->flag==0 && h->nxt->nxt->op == '=')
+        {
+            printf("Print: %lld\n",h->nxt->num);
+            temp = h->nxt->nxt->nxt;
+            ptnode del = h->nxt;
+            ptnode tmp;
+            if(temp==NULL)
+            {
+                while(del!=temp)
+                {
+                    tmp = del->nxt;
+                    free(del);
+                    del = tmp;
+                }
+                h->nxt = temp;
+            }
+            else
+            {
+                free(h->nxt->nxt);
+                h->nxt->nxt = temp;
+                temp = h->nxt;
+            }
+        }
+        else
+        {
+            long long int ans;
+            while(temp->nxt->nxt->flag != 0)
+                temp = temp->nxt;
+            ans = cal(temp);
+            temp->num = ans;
+            ptnode tmp = temp;
+            temp = temp->nxt;
+            ptnode nodetmp;
+            while(temp->flag != 0)
+            {
+                
+                nodetmp = temp->nxt;
+                free(temp);
+                temp = nodetmp;
+            }
+            nodetmp = temp->nxt;
+            free(temp);
+            temp = nodetmp;
+            tmp->nxt = temp;
+            
+        }
+        temp = h->nxt;
+    }
+}
+
+int main(void)
+{
+    head h = NULL;
+    long long int number = (int)pow(10,6);
+    char a[number]; //correct the data has been put into the string
+    scanf("%s",a);//1234+(3*2)
+    h = initdata(h,a);
+    struct opptr s;
+    s.bottom = s.top = NULL;
+
+    intopost(h,s);
+
+    calculate(h);
+    release(h); 
+    return 0;
+}
+
